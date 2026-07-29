@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
+import { inflateSync } from "node:zlib";
 import {
 	detectTerminalId,
+	encodeKittyRgbTransmit,
 	getTerminalInfo,
 	hyperlinksUserOverride,
 	ImageProtocol,
@@ -369,5 +371,17 @@ describe("shouldEnableHyperlinksByDefault", () => {
 		expect(shouldEnableHyperlinksByDefault({ PI_FORCE_HYPERLINKS: "1" }, "base")).toBe(true);
 		expect(shouldEnableHyperlinksByDefault({ PI_FORCE_HYPERLINKS: "1", TMUX: "1" }, "wezterm")).toBe(true);
 		expect(shouldEnableHyperlinksByDefault({ PI_FORCE_HYPERLINKS: "1", STY: "1.pts-0" }, "kitty")).toBe(true);
+	});
+});
+
+describe("encodeKittyRgbTransmit", () => {
+	it("compresses raw 24-bit RGB pixels with their exact dimensions", () => {
+		const rgb = Uint8Array.from([255, 216, 64, 132, 78, 12]);
+		const sequence = encodeKittyRgbTransmit(rgb, 2, 1, 42);
+		const payload = sequence.slice(sequence.indexOf(";") + 1, sequence.lastIndexOf("\x1b\\"));
+
+		expect(sequence).toContain("\x1b_Ga=t,f=24,s=2,v=1,o=z,q=2,i=42;");
+		expect(inflateSync(Buffer.from(payload, "base64"))).toEqual(Buffer.from(rgb));
+		expect(() => encodeKittyRgbTransmit(rgb, 1, 1, 42)).toThrow("expected 3");
 	});
 });

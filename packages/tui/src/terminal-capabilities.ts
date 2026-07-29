@@ -1,3 +1,4 @@
+import { deflateSync } from "node:zlib";
 import { encodeSixel } from "@oh-my-pi/pi-natives";
 import { $env, isBunTestRuntime, isTerminalHeadless } from "@oh-my-pi/pi-utils";
 import { sendDesktopNotification, shouldDeliverDesktopNotification } from "./desktop-notify";
@@ -708,6 +709,23 @@ export function encodeKitty(
  */
 export function encodeKittyTransmit(base64Data: string, imageId: number): string {
 	return chunkKittyApc(`a=t,f=100,q=2,i=${imageId}`, base64Data);
+}
+
+/**
+ * Compress and transmit one raw 24-bit RGB frame under a stable Kitty image id.
+ * Reusing the id replaces the terminal-side pixels; callers must recreate the
+ * placement afterward because the protocol removes placements on retransmit.
+ */
+export function encodeKittyRgbTransmit(rgb: Uint8Array, width: number, height: number, imageId: number): string {
+	if (!Number.isSafeInteger(width) || width <= 0 || !Number.isSafeInteger(height) || height <= 0) {
+		throw new RangeError(`Invalid Kitty RGB dimensions: ${width}x${height}`);
+	}
+	const expectedBytes = width * height * 3;
+	if (!Number.isSafeInteger(expectedBytes) || rgb.byteLength !== expectedBytes) {
+		throw new RangeError(`Kitty RGB frame has ${rgb.byteLength} bytes; expected ${expectedBytes}`);
+	}
+	const compressed = deflateSync(rgb, { level: 1 });
+	return chunkKittyApc(`a=t,f=24,s=${width},v=${height},o=z,q=2,i=${imageId}`, compressed.toString("base64"));
 }
 
 /**

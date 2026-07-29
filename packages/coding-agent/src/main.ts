@@ -56,6 +56,7 @@ import type { ExtensionUIContext } from "./extensibility/extensions/types";
 import { scheduleMarketplaceAutoUpdate } from "./extensibility/plugins/marketplace-auto-update";
 import { registerDaemonProjectPresence } from "./launch/presence";
 import type { MCPManager } from "./mcp";
+import { runUpdateCrawl } from "./modes/components/update-crawl";
 import { InteractiveMode } from "./modes/interactive-mode";
 import type { PrintModeOptions } from "./modes/print-mode";
 import { claimRpcInput } from "./modes/rpc/rpc-input";
@@ -416,10 +417,14 @@ async function runInteractiveMode(
 	initialImages?: ImageContent[],
 	joinLink?: string,
 ): Promise<void> {
+	const updateCrawlMarkdown =
+		!settings.get("startup.quiet") && settings.get("startup.changelogMode") === "crawl"
+			? startupChangelog?.markdown
+			: undefined;
 	const mode = new InteractiveMode(
 		session,
 		version,
-		startupChangelog,
+		updateCrawlMarkdown ? undefined : startupChangelog,
 		setExtensionUIContext,
 		lspServers,
 		mcpManager,
@@ -447,7 +452,8 @@ async function runInteractiveMode(
 	const playStartupSplash = showStartupSplash && setupScenes.length === 0;
 
 	await mode.init({
-		suppressWelcomeIntro: resuming || setupScenes.length > 0 || playStartupSplash,
+		suppressWelcomeIntro:
+			resuming || setupScenes.length > 0 || playStartupSplash || updateCrawlMarkdown !== undefined,
 		clearInitialTerminalHistory: true,
 	});
 
@@ -457,6 +463,10 @@ async function runInteractiveMode(
 
 	if (setupWizard && setupScenes.length > 0) {
 		await setupWizard.runSetupWizard(mode, setupScenes);
+	}
+
+	if (updateCrawlMarkdown) {
+		await runUpdateCrawl(mode, updateCrawlMarkdown, version);
 	}
 
 	versionCheckPromise

@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+### Added
+
+- Added an optional `crawl` startup changelog mode that plays complete release notes as a yellow Star Wars-style perspective crawl with twinkling stars, using Kitty graphics when available and a portable text fallback in multiplexers and unsupported terminals.
+
 ## [17.1.8] - 2026-07-28
 
 ### Breaking Changes
